@@ -95,4 +95,82 @@ function aged() {
     });
   });
 }
+function New() {
+  var sourceSheetId = 'YOUR_SOURCE_SHEET_ID'; // Replace with your source sheet ID
+  var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet(); // Get the active spreadsheet (GCP Count)
+  
+  // Open the source spreadsheet and the two sheets (Detail Data and Last Week Data)
+  var sourceSpreadsheet = SpreadsheetApp.openById(sourceSheetId);
+  var detailDataSheet = sourceSpreadsheet.getSheetByName('Detail Data');
+  var lastWeekDataSheet = sourceSpreadsheet.getSheetByName('Last Week Data');
+  
+  // Get all data from both sheets
+  var detailData = detailDataSheet.getDataRange().getValues();
+  var lastWeekData = lastWeekDataSheet.getDataRange().getValues();
+  
+  // Get headers
+  var detailDataHeaders = detailData[0];
+  var lastWeekDataHeaders = lastWeekData[0];
+  
+  // Find the column indices for Location and Unique Identifier w Repository & Port
+  var locationColumnIndex = detailDataHeaders.indexOf('Location');
+  var uniqueIdentifierColumnIndex = detailDataHeaders.indexOf('Unique Identifier w Repository & Port');
+  
+  // Define the values to filter by
+  var locationsToFilter = ['Google Central 1', 'Google East 1', 'Googe East 1']; // No autocorrection for 'Googe East 1'
+  
+  // Extract Unique Identifiers from both sheets
+  var detailDataUniqueIdentifiers = detailData.slice(1).map(row => row[uniqueIdentifierColumnIndex]);
+  var lastWeekDataUniqueIdentifiers = lastWeekData.slice(1).map(row => row[uniqueIdentifierColumnIndex]);
+  
+  // Create sheets for New, Closed, and Unpatched
+  var newSheet = createOrClearSheet(targetSpreadsheet, 'New Count');
+  var closedSheet = createOrClearSheet(targetSpreadsheet, 'Closed Count');
+  var unpatchedSheet = createOrClearSheet(targetSpreadsheet, 'Unpatched Count');
+  
+  // Append headers to the new sheets
+  newSheet.appendRow(detailDataHeaders);
+  closedSheet.appendRow(detailDataHeaders);
+  unpatchedSheet.appendRow(detailDataHeaders);
+  
+  // Compare the Unique Identifiers
+  detailData.slice(1).forEach(function(row) {
+    var location = row[locationColumnIndex];
+    var uniqueIdentifier = row[uniqueIdentifierColumnIndex];
+    
+    // Check if the location matches and compare Unique Identifiers
+    if (locationsToFilter.indexOf(location) !== -1) {
+      if (lastWeekDataUniqueIdentifiers.indexOf(uniqueIdentifier) === -1) {
+        // If present in Detail Data but not in Last Week Data -> New
+        newSheet.appendRow(row);
+      } else {
+        // If present in both -> Unpatched
+        unpatchedSheet.appendRow(row);
+      }
+    }
+  });
+  
+  lastWeekData.slice(1).forEach(function(row) {
+    var location = row[locationColumnIndex];
+    var uniqueIdentifier = row[uniqueIdentifierColumnIndex];
+    
+    // Check if the location matches and compare Unique Identifiers
+    if (locationsToFilter.indexOf(location) !== -1) {
+      if (detailDataUniqueIdentifiers.indexOf(uniqueIdentifier) === -1) {
+        // If present in Last Week Data but not in Detail Data -> Closed
+        closedSheet.appendRow(row);
+      }
+    }
+  });
+}
 
+// Helper function to create a sheet or clear it if it already exists
+function createOrClearSheet(spreadsheet, sheetName) {
+  var sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+  } else {
+    sheet.clear(); // Clear existing data if the sheet already exists
+  }
+  return sheet;
+}
