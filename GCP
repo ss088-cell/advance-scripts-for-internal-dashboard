@@ -1,0 +1,48 @@
+function filterAndCreateSheets() {
+  var sourceSheetId = 'YOUR_SOURCE_SHEET_ID'; // Replace with your source sheet ID
+  var targetSpreadsheet = SpreadsheetApp.getActiveSpreadsheet(); // Get the active spreadsheet (GCP Count)
+  
+  // Open source spreadsheet and the 'Detail Data' sheet
+  var sourceSpreadsheet = SpreadsheetApp.openById(sourceSheetId);
+  var sourceSheet = sourceSpreadsheet.getSheetByName('Detail Data');
+  
+  // Get all data from the source sheet
+  var data = sourceSheet.getDataRange().getValues();
+  
+  // Get headers
+  var headers = data[0];
+  
+  // Find the column indices for Location and VPR
+  var locationColumnIndex = headers.indexOf('Location');
+  var vprColumnIndex = headers.indexOf('VPR');
+  
+  // Define the values to filter by
+  var locationsToFilter = ['Google Central 1', 'Google East 1', 'Googe East 1']; // No autocorrection for 'Googe East 1'
+  var vprValues = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+  
+  // Create sheets in the target spreadsheet for each VPR value
+  vprValues.forEach(function(vprValue) {
+    // Create the sheet or clear it if it already exists
+    var sheetName = vprValue + ' COUNT';
+    var targetSheet = targetSpreadsheet.getSheetByName(sheetName);
+    if (!targetSheet) {
+      targetSheet = targetSpreadsheet.insertSheet(sheetName);
+    } else {
+      targetSheet.clear(); // Clear existing data if the sheet already exists
+    }
+
+    // Add headers to the new sheet
+    targetSheet.appendRow(headers);
+    
+    // Filter and copy data to the corresponding sheet
+    data.slice(1).forEach(function(row) {
+      var location = row[locationColumnIndex];
+      var vpr = row[vprColumnIndex];
+      
+      // Check if the row matches the filter criteria
+      if (locationsToFilter.indexOf(location) !== -1 && vpr === vprValue) {
+        targetSheet.appendRow(row);
+      }
+    });
+  });
+}
